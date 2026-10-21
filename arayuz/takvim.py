@@ -1,26 +1,30 @@
 """Kaynak takvimi: seçilen gün için her kaynak bir satır, yatay eksen 08:00-22:00.
 
-Yalnızca çizim yapar. Hangi rezervasyonun geçerli olduğuna karar vermez;
-veriyi modülden okur. Boş alana sürükleyerek aralık seçmek talep formunu
-doldurur, bir kutuya tıklamak rezervasyonu seçer, sağ tık eylem menüsü açar.
+Yalnızca çizim yapar; hangi rezervasyonun geçerli olduğuna karar vermez, veriyi
+modülden okur. Boş alana sürüklemek talep formunu doldurur, kutuya tıklamak
+rezervasyonu seçer, sağ tık eylem menüsünü açar.
+
+Hareket: saat ilerletildiğinde simüle saat çizgisi yeni konumuna kayar ve
+geçmiş gölgesi onunla ilerler; ardından durumu değişen ya da yeni oluşan
+rezervasyonlar kısa bir halkayla belirtilir.
 """
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
-from PySide6.QtCore import QEvent, QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QEasingCurve, QEvent, QPointF, QRectF, Qt, QVariantAnimation, Signal
 from PySide6.QtGui import QBrush, QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QMenu, QToolTip, QWidget
 
-from rezervasyon.motor import CALISMA_BASLANGIC_SAAT, CALISMA_BITIS_SAAT, DILIM_DK, PIK_BASLANGIC_SAAT, PIK_BITIS_SAAT
-from .stil import (BAKIM_RENK, DURUM_AD, DURUM_RENK, HAZIRLIK_RENK, SIMDI_RENK, ANA_RENK,
-                   aralik_metni, saat_metni)
+from rezervasyon.motor import (CALISMA_BASLANGIC_SAAT, CALISMA_BITIS_SAAT, DILIM_DK,
+                               PIK_BASLANGIC_SAAT, PIK_BITIS_SAAT)
+from . import tema
+from .stil import DURUM_AD, aralik_metni, saat_metni
 
-ETIKET_GEN = 150     # sol kaynak adı sütunu
-UST = 30             # saat başlıkları
+ETIKET_GEN = 156     # sol kaynak adı sütunu
+UST = 46             # saat başlıkları + simüle saat şeridi
 SERIT = 30           # bir alt satırın yüksekliği
-SATIR_IC = 5         # satır iç boşluğu
-SAG = 26
-
+SATIR_IC = 6         # satır iç boşluğu
+SAG = 18
 PASIF = ("IPTAL", "GELMEDI")
 
 
@@ -30,6 +34,10 @@ class Satir:
     y: float
     h: float
     seritler: list = field(default_factory=list)   # her biri rezervasyon listesi
+
+
+def _sayisal(an: datetime) -> float:
+    return an.timestamp()
 
 
 class TakvimWidget(QWidget):
@@ -46,20 +54,105 @@ class TakvimWidget(QWidget):
         self._kutular: list[tuple[QRectF, str]] = []
         self._surukle = None          # (satir_indeksi, ilk_dilim, son_dilim)
         self._uzerinde = None         # (satir_indeksi, dilim)
+        self._uzerindeki_kutu = None
+        self._onceki: dict[str, tuple] = {}
+        self._vurgu: set[str] = set()
+        self._bekleyen_vurgu: set[str] = set()
+        self._vurgu_ilerleme = 1.0
+        self._cizgi: datetime | None = None   # ekranda gösterilen simüle saat
+
+        self._kayma = QVariantAnimation(self)
+        self._kayma.setDuration(650)
+        self._kayma.setEasingCurve(QEasingCurve.OutExpo)
+        self._kayma.valueChanged.connect(self._kayma_adim)
+        self._kayma.finished.connect(self._vurguyu_baslat)
+
+        self._halka = QVariantAnimation(self)
+        self._halka.setDuration(1100)
+        self._halka.setStartValue(0.0)
+        self._halka.setEndValue(1.0)
+        self._halka.setEasingCurve(QEasingCurve.OutCubic)
+        self._halka.valueChanged.connect(self._halka_adim)
+
         self.setMouseTracking(True)
-        self.setMinimumWidth(640)
+        self.setMinimumWidth(600)
+        f = QFont(self.font())
+        try:
+            f.setFeature(QFont.Tag("tnum"), 1)   # saatler hizalı dursun
+        except Exception:
+            pass
+        self.setFont(f)
 
     # ------------------------------------------------------------------
+    def sifirla(self) -> None:
+        """Yeni dosya yüklenince: animasyon ve vurgu yok, durum anlık alınır."""
+        self._kayma.stop()
+        self._halka.stop()
+        self._vurgu = set()
+        self._bekleyen_vurgu = set()
+        self._cizgi = self.oturum.sistem.saat
+        self._onceki = self._durum_resmi()
+        self.secili = None
+        self._duzen_hesapla()
+        self.update()
+
     def gun_ayarla(self, gun: date) -> None:
         self.gun = gun
-        self.yenile()
+        self._duzen_hesapla()
+        self.update()
 
     def sec(self, rid: str | None) -> None:
         self.secili = rid
         self.update()
 
     def yenile(self) -> None:
+        """Modülün durumu değişince çağrılır: farkları bulur, animasyonları başlatır."""
+        s = self.oturum.sistem
+        if s is None:
+            return
+        simdiki = self._durum_resmi()
+        degisen = {rid for rid, deger in simdiki.items() if self._onceki.get(rid) != deger}
+        self._onceki = simdiki
         self._duzen_hesapla()
+        self._bekleyen_vurgu |= degisen
+
+        if self._cizgi is None:
+            self._cizgi = s.saat
+        if s.saat != self._cizgi:
+            ayni_gun = self._cizgi.date() == s.saat.date() == self.gun
+            if tema.yonetici.animasyon and ayni_gun:
+                self._kayma.stop()
+                self._kayma.setStartValue(_sayisal(self._cizgi))
+                self._kayma.setEndValue(_sayisal(s.saat))
+                self._kayma.start()
+                self.update()
+                return
+            self._cizgi = s.saat
+        if self._kayma.state() != QVariantAnimation.Running:
+            self._vurguyu_baslat()
+        self.update()
+
+    def _durum_resmi(self) -> dict[str, tuple]:
+        s = self.oturum.sistem
+        return {r.id: (r.durum, r.bitis) for r in s.rezervasyonlar.values()} if s else {}
+
+    def _kayma_adim(self, deger):
+        self._cizgi = datetime.fromtimestamp(deger)
+        self.update()
+
+    def _vurguyu_baslat(self):
+        self._cizgi = self.oturum.sistem.saat
+        if self._bekleyen_vurgu:
+            self._vurgu = self._bekleyen_vurgu
+            self._bekleyen_vurgu = set()
+            self._halka.stop()
+            self._halka.start()
+        self.update()
+
+    def _halka_adim(self, deger):
+        self._vurgu_ilerleme = deger
+        if deger >= 1.0:
+            self._vurgu = set()
         self.update()
 
     # ------------------------------------------------------------------
@@ -70,15 +163,17 @@ class TakvimWidget(QWidget):
         toplam_dk = (CALISMA_BITIS_SAAT - CALISMA_BASLANGIC_SAAT) * 60
         return max(0.3, (self.width() - ETIKET_GEN - SAG) / toplam_dk)
 
+    def _gun_basi(self) -> datetime:
+        return datetime(self.gun.year, self.gun.month, self.gun.day)
+
     def _x(self, an: datetime) -> float:
-        bas = datetime(self.gun.year, self.gun.month, self.gun.day, CALISMA_BASLANGIC_SAAT)
+        bas = self._gun_basi() + timedelta(hours=CALISMA_BASLANGIC_SAAT)
         dakika = (an - bas) / timedelta(minutes=1)
         dakika = max(0, min((CALISMA_BITIS_SAAT - CALISMA_BASLANGIC_SAAT) * 60, dakika))
         return ETIKET_GEN + dakika * self._dk_basi
 
     def _dilim_zamani(self, dilim: int) -> datetime:
-        return (datetime(self.gun.year, self.gun.month, self.gun.day, CALISMA_BASLANGIC_SAAT)
-                + timedelta(minutes=dilim * DILIM_DK))
+        return self._gun_basi() + timedelta(hours=CALISMA_BASLANGIC_SAAT, minutes=dilim * DILIM_DK)
 
     def _dilim(self, x: float) -> int:
         en_cok = (CALISMA_BITIS_SAAT - CALISMA_BASLANGIC_SAAT) * 60 // DILIM_DK - 1
@@ -108,7 +203,7 @@ class TakvimWidget(QWidget):
             yuk = adet * SERIT + 2 * SATIR_IC
             self._satirlar.append(Satir(kaynak, y, yuk, seritler))
             y += yuk
-        self.setMinimumHeight(int(y + 6))
+        self.setMinimumHeight(int(y + 8))
 
     @staticmethod
     def _carpisir(a, b, h) -> bool:
@@ -120,9 +215,10 @@ class TakvimWidget(QWidget):
     # Çizim
     # ------------------------------------------------------------------
     def paintEvent(self, _):
+        t = tema.aktif()
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        p.fillRect(self.rect(), QColor("#ffffff"))
+        p.fillRect(self.rect(), QColor(t["yuzey"]))
         s = self.oturum.sistem
         if s is None:
             return
@@ -130,128 +226,176 @@ class TakvimWidget(QWidget):
             self._duzen_hesapla()
         sol, sag = ETIKET_GEN, self.width() - SAG
         alt = self._satirlar[-1].y + self._satirlar[-1].h if self._satirlar else UST + 40
-        gun_basi = datetime(self.gun.year, self.gun.month, self.gun.day)
+        gun_basi = self._gun_basi()
+        cizgi = self._cizgi or s.saat
 
-        # Pik saat şeridi (başlıkta ince turuncu çizgi)
-        p.fillRect(QRectF(self._x(gun_basi + timedelta(hours=PIK_BASLANGIC_SAAT)), UST - 4,
-                          self._x(gun_basi + timedelta(hours=PIK_BITIS_SAAT))
-                          - self._x(gun_basi + timedelta(hours=PIK_BASLANGIC_SAAT)), 3),
-                   QColor("#fdba74"))
+        kalin = QFont(self.font()); kalin.setWeight(QFont.DemiBold)
+        kucuk = QFont(self.font()); kucuk.setPointSizeF(self.font().pointSizeF() - 1.2)
 
-        # Satır zeminleri ve etiketler
-        kalin = QFont(self.font()); kalin.setBold(True)
-        kucuk = QFont(self.font()); kucuk.setPointSizeF(self.font().pointSizeF() - 1)
+        # Satır zeminleri ve kaynak adları
         for i, satir in enumerate(self._satirlar):
             if i % 2:
-                p.fillRect(QRectF(0, satir.y, self.width(), satir.h), QColor("#f8fafc"))
-            p.setPen(QColor("#0f172a")); p.setFont(kalin)
-            p.drawText(QRectF(10, satir.y + 3, sol - 14, 18), Qt.AlignLeft | Qt.AlignVCenter,
-                       satir.kaynak["id"])
-            p.setPen(QColor("#64748b")); p.setFont(kucuk)
+                p.fillRect(QRectF(0, satir.y, self.width(), satir.h), QColor(t["satir_alt"]))
+            p.setPen(QColor(t["yazi"])); p.setFont(kalin)
+            p.drawText(QRectF(12, satir.y + 5, sol - 16, 18), Qt.AlignLeft | Qt.AlignVCenter, satir.kaynak["id"])
+            p.setPen(QColor(t["yazi3"])); p.setFont(kucuk)
             ad = QFontMetrics(kucuk).elidedText(f"{satir.kaynak['ad']} · {satir.kaynak['tur']}",
-                                                Qt.ElideRight, sol - 14)
-            p.drawText(QRectF(10, satir.y + 19, sol - 14, 16), Qt.AlignLeft | Qt.AlignVCenter, ad)
-        p.setFont(self.font())
+                                                Qt.ElideRight, sol - 18)
+            p.drawText(QRectF(12, satir.y + 22, sol - 16, 15), Qt.AlignLeft | Qt.AlignVCenter, ad)
+
+        # Saat başlıkları: genişliğe göre "08:00", "08" ya da iki saatte bir
+        saat_px = 60 * self._dk_basi
+        p.setFont(kucuk)
+        fm = QFontMetrics(kucuk)
+        uzun = saat_px >= fm.horizontalAdvance("00:00") + 12
+        adim = 1 if saat_px >= fm.horizontalAdvance("00") + 10 else 2
+        for saat in range(CALISMA_BASLANGIC_SAAT, CALISMA_BITIS_SAAT + 1, adim):
+            x = self._x(gun_basi + timedelta(hours=saat))
+            p.setPen(QColor(t["yazi3"]))
+            metin = f"{saat:02d}:00" if uzun else f"{saat:02d}"
+            p.drawText(QRectF(x - 24, 6, 48, 16), Qt.AlignCenter, metin)
+
+        # Pik saat şeridi
+        pik_b = self._x(gun_basi + timedelta(hours=PIK_BASLANGIC_SAAT))
+        pik_e = self._x(gun_basi + timedelta(hours=PIK_BITIS_SAAT))
+        pik = QColor(t["pik"]); pik.setAlpha(160)
+        p.fillRect(QRectF(pik_b, UST - 4, pik_e - pik_b, 3), pik)
 
         # Izgara: her 15 dk ince, her saat belirgin
         for dilim in range((CALISMA_BITIS_SAAT - CALISMA_BASLANGIC_SAAT) * 60 // DILIM_DK + 1):
             an = self._dilim_zamani(dilim)
-            x = self._x(an)
-            if an.minute == 0:
-                p.setPen(QPen(QColor("#cbd5e1"), 1))
-                p.drawLine(QPointF(x, UST - 6), QPointF(x, alt))
-                p.setPen(QColor("#475569"))
-                p.drawText(QRectF(x - 20, 4, 40, 18), Qt.AlignCenter, saat_metni(an))
-            else:
-                renk = "#e2e8f0" if an.minute == 30 else "#f1f5f9"
-                p.setPen(QPen(QColor(renk), 1))
-                p.drawLine(QPointF(x, UST), QPointF(x, alt))
-        p.setPen(QPen(QColor("#e2e8f0"), 1))
+            x = round(self._x(an)) + 0.5
+            anahtar = "izgara_saat" if an.minute == 0 else ("izgara_yarim" if an.minute == 30 else "izgara_ceyrek")
+            p.setPen(QPen(QColor(t[anahtar]), 1))
+            p.drawLine(QPointF(x, UST - (6 if an.minute == 0 else 0)), QPointF(x, alt))
+        p.setPen(QPen(QColor(t["cizgi"]), 1))
         for satir in self._satirlar:
-            p.drawLine(QPointF(0, satir.y + satir.h), QPointF(self.width(), satir.y + satir.h))
-        p.drawLine(QPointF(sol, UST), QPointF(sol, alt))
+            p.drawLine(QPointF(0, satir.y + satir.h - 0.5), QPointF(self.width(), satir.y + satir.h - 0.5))
+        p.drawLine(QPointF(sol - 0.5, UST), QPointF(sol - 0.5, alt))
 
-        # Geçmiş zaman gölgesi
-        if self.gun < s.saat.date():
-            p.fillRect(QRectF(sol, UST, sag - sol, alt - UST), QColor(15, 23, 42, 12))
-        elif self.gun == s.saat.date():
-            p.fillRect(QRectF(sol, UST, self._x(s.saat) - sol, alt - UST), QColor(15, 23, 42, 12))
+        # Geçmiş zaman gölgesi (simüle saat çizgisiyle birlikte ilerler)
+        gecmis = QColor(*t["gecmis"])
+        if self.gun < cizgi.date():
+            p.fillRect(QRectF(sol, UST, sag - sol, alt - UST), gecmis)
+        elif self.gun == cizgi.date():
+            p.fillRect(QRectF(sol, UST, self._x(cizgi) - sol, alt - UST), gecmis)
 
         self._kutular = []
-        for i, satir in enumerate(self._satirlar):
+        p.setFont(self.font())
+        for satir in self._satirlar:
             kid = satir.kaynak["id"]
             ic_ust = satir.y + SATIR_IC
             tum_yuk = satir.h - 2 * SATIR_IC
             # Bakım pencereleri: satırın tamamını kaplar
             for b in s.bakimlar:
                 if b["kaynak"] == kid and b["baslangic"] < gun_basi + timedelta(days=1) and b["bitis"] > gun_basi:
-                    r = QRectF(self._x(b["baslangic"]), ic_ust, self._x(b["bitis"]) - self._x(b["baslangic"]), tum_yuk)
-                    p.setPen(QPen(QColor(BAKIM_RENK), 1))
-                    p.setBrush(QBrush(QColor(BAKIM_RENK), Qt.BDiagPattern))
-                    p.drawRoundedRect(r, 4, 4)
-                    p.setPen(QColor("#334155"))
-                    p.drawText(r, Qt.AlignCenter, "Bakım")
+                    r = QRectF(self._x(b["baslangic"]) + 1, ic_ust,
+                               self._x(b["bitis"]) - self._x(b["baslangic"]) - 2, tum_yuk)
+                    renk = QColor(t["bakim"])
+                    zemin = QColor(renk); zemin.setAlpha(28)
+                    p.setPen(Qt.NoPen); p.setBrush(zemin); p.drawRoundedRect(r, 5, 5)
+                    p.setPen(QPen(renk, 1)); p.setBrush(QBrush(renk, Qt.BDiagPattern))
+                    p.drawRoundedRect(r, 5, 5)
+                    p.setPen(QColor(t["yazi2"])); p.setFont(kalin)
+                    if r.width() > 46:
+                        p.drawText(r, Qt.AlignCenter, "Bakım")
+                    p.setFont(self.font())
             # Hazırlık süreleri: ilgili rezervasyonun ardından, ilk alt satırda
             for bas, bit in s.hazirlik_araliklari(kid, self.gun):
-                r = QRectF(self._x(bas), ic_ust + 3, self._x(bit) - self._x(bas), SERIT - 6)
-                p.setPen(QPen(QColor(HAZIRLIK_RENK), 1, Qt.DotLine))
-                p.setBrush(QBrush(QColor(HAZIRLIK_RENK), Qt.Dense6Pattern))
-                p.drawRect(r)
+                r = QRectF(self._x(bas), ic_ust + 4, self._x(bit) - self._x(bas), SERIT - 8)
+                p.setPen(Qt.NoPen)
+                p.setBrush(QBrush(QColor(t["hazirlik"]), Qt.Dense6Pattern))
+                p.drawRoundedRect(r.adjusted(1, 0, 0, 0), 3, 3)
             # Rezervasyon kutuları
             for sira, serit in enumerate(satir.seritler):
                 for rez in serit:
-                    self._kutu_ciz(p, rez, QRectF(self._x(rez.baslangic) + 1, ic_ust + sira * SERIT + 1,
-                                                  self._x(rez.bitis) - self._x(rez.baslangic) - 2, SERIT - 2))
+                    self._kutu_ciz(p, rez, QRectF(self._x(rez.baslangic) + 1.5, ic_ust + sira * SERIT + 1.5,
+                                                  self._x(rez.bitis) - self._x(rez.baslangic) - 3, SERIT - 3))
 
-        # Fare altındaki 15 dakikalık hücre ve sürükleme seçimi
+        # Sürükleme seçimi ya da fare altındaki 15 dakikalık hücre
+        vurgu = QColor(t["vurgu"])
         if self._surukle:
             i, d1, d2 = self._surukle
             satir = self._satirlar[i]
             a, b = min(d1, d2), max(d1, d2) + 1
-            r = QRectF(self._x(self._dilim_zamani(a)), satir.y + 2,
-                       self._x(self._dilim_zamani(b)) - self._x(self._dilim_zamani(a)), satir.h - 4)
-            renk = QColor(ANA_RENK); renk.setAlpha(45)
-            p.setPen(QPen(QColor(ANA_RENK), 1.5, Qt.DashLine)); p.setBrush(renk)
-            p.drawRoundedRect(r, 4, 4)
-            p.setPen(QColor("#1e3a8a"))
+            r = QRectF(self._x(self._dilim_zamani(a)), satir.y + 3,
+                       self._x(self._dilim_zamani(b)) - self._x(self._dilim_zamani(a)), satir.h - 6)
+            dolgu = QColor(vurgu); dolgu.setAlpha(40)
+            p.setPen(QPen(vurgu, 1.5, Qt.DashLine)); p.setBrush(dolgu)
+            p.drawRoundedRect(r, 5, 5)
+            p.setPen(QColor(t["vurgu_yazi"])); p.setFont(kalin)
             p.drawText(r, Qt.AlignCenter, f"{saat_metni(self._dilim_zamani(a))}–{saat_metni(self._dilim_zamani(b))}")
-        elif self._uzerinde:
+            p.setFont(self.font())
+        elif self._uzerinde and not self._uzerindeki_kutu:
             i, d = self._uzerinde
             satir = self._satirlar[i]
             r = QRectF(self._x(self._dilim_zamani(d)), satir.y + 1, DILIM_DK * self._dk_basi, satir.h - 2)
-            renk = QColor(ANA_RENK); renk.setAlpha(25)
-            p.fillRect(r, renk)
+            dolgu = QColor(vurgu); dolgu.setAlpha(28)
+            p.fillRect(r, dolgu)
 
-        # Simüle saat çizgisi
-        if self.gun == s.saat.date():
-            x = self._x(s.saat)
-            p.setPen(QPen(QColor(SIMDI_RENK), 2))
-            p.drawLine(QPointF(x, UST - 6), QPointF(x, alt))
-            etiket = QRectF(x - 22, UST - 17, 44, 15)
-            p.setPen(Qt.NoPen); p.setBrush(QColor(SIMDI_RENK))
-            p.drawRoundedRect(etiket, 3, 3)
-            p.setPen(QColor("white")); p.setFont(kucuk)
-            p.drawText(etiket, Qt.AlignCenter, saat_metni(s.saat))
+        # Simüle saat çizgisi ve etiketi (başlıkla çakışmasın diye ayrı şeritte)
+        if self.gun == cizgi.date():
+            x = self._x(cizgi)
+            simdi = QColor(t["simdi"])
+            p.setPen(QPen(simdi, 2))
+            p.drawLine(QPointF(x, UST - 4), QPointF(x, alt))
+            p.setFont(kucuk)
+            metin = saat_metni(cizgi)
+            gen = QFontMetrics(kucuk).horizontalAdvance(metin) + 14
+            etiket = QRectF(min(max(x - gen / 2, sol), sag - gen), 24, gen, 17)
+            p.setPen(Qt.NoPen); p.setBrush(simdi)
+            p.drawRoundedRect(etiket, 8.5, 8.5)
+            p.setPen(QColor("#ffffff"))
+            p.drawText(etiket, Qt.AlignCenter, metin)
         p.end()
 
     def _kutu_ciz(self, p: QPainter, rez, r: QRectF) -> None:
-        dolgu, kenar, yazi = DURUM_RENK.get(rez.durum, ("#e2e8f0", "#94a3b8", "#0f172a"))
+        t = tema.aktif()
+        dolgu, kenar, yazi = t["durum"].get(rez.durum, (t["yuzey3"], t["cizgi_guclu"], t["yazi"]))
+        dolgu, kenar = QColor(dolgu), QColor(kenar)
         secili = rez.id == self.secili
-        p.setPen(QPen(QColor("#0f172a") if secili else QColor(kenar), 2.2 if secili else 1,
-                      Qt.DashLine if rez.durum in PASIF else Qt.SolidLine))
-        p.setBrush(QColor(dolgu))
-        p.drawRoundedRect(r, 4, 4)
+        if rez.id == self._uzerindeki_kutu:
+            dolgu = dolgu.lighter(110) if t["ad"] == "acik" else dolgu.lighter(125)
+
+        # Seçili kutuya yumuşak gölge: aşağı kaymış, kenarı dağılan katmanlar
+        if secili:
+            for kat, alfa in ((4, 16), (3, 22), (2, 30)):
+                p.setPen(Qt.NoPen); p.setBrush(QColor(0, 0, 0, alfa))
+                p.drawRoundedRect(r.adjusted(-kat + 2, kat, kat - 2, kat + 1), 6, 6)
+
+        p.setPen(QPen(kenar, 1, Qt.DashLine if rez.durum in PASIF else Qt.SolidLine))
+        p.setBrush(dolgu)
+        p.drawRoundedRect(r, 5, 5)
+        if secili:
+            p.setPen(QPen(QColor(t["yazi"]), 2))
+            p.setBrush(Qt.NoBrush)
+            p.drawRoundedRect(r.adjusted(-1.5, -1.5, 1.5, 1.5), 6, 6)
+
+        # Değişiklik halkası: büyüyerek söner (animasyon kapalıysa yalnızca söner)
+        if rez.id in self._vurgu:
+            ilerleme = self._vurgu_ilerleme
+            buyume = 1 + (7 * ilerleme if tema.yonetici.animasyon else 2)
+            halka = QColor(t["vurgu"] if rez.durum not in PASIF else kenar)
+            halka.setAlphaF(max(0.0, 0.85 * (1 - ilerleme)))
+            p.setPen(QPen(halka, 2)); p.setBrush(Qt.NoBrush)
+            p.drawRoundedRect(r.adjusted(-buyume, -buyume, buyume, buyume), 5 + buyume, 5 + buyume)
+
         self._kutular.append((r, rez.id))
-        p.setPen(QColor(yazi))
+        fm = QFontMetrics(self.font())
         metin = f"{rez.id} · {rez.kullanici}"
         if rez.paket:
             metin += f" · {rez.paket}"
-        if r.width() > QFontMetrics(self.font()).horizontalAdvance(metin + " 00:00–00:00 ") + 10:
+        if r.width() > fm.horizontalAdvance(metin + "  00:00–00:00") + 14:
             metin += f"  {saat_metni(rez.baslangic)}–{saat_metni(rez.bitis)}"
-        metin = QFontMetrics(self.font()).elidedText(metin, Qt.ElideRight, int(r.width() - 8))
-        f = QFont(self.font()); f.setStrikeOut(rez.durum == "IPTAL")
+        elif r.width() < fm.horizontalAdvance(metin) + 12:
+            metin = rez.id
+        metin = fm.elidedText(metin, Qt.ElideRight, int(r.width() - 10))
+        f = QFont(self.font())
+        f.setStrikeOut(rez.durum == "IPTAL")
+        f.setWeight(QFont.DemiBold if rez.durum in ("ONAYLI", "KULLANIMDA") else QFont.Normal)
         p.setFont(f)
-        p.drawText(r.adjusted(5, 0, -3, 0), Qt.AlignLeft | Qt.AlignVCenter, metin)
+        p.setPen(QColor(yazi))
+        p.drawText(r.adjusted(6, 0, -4, 0), Qt.AlignLeft | Qt.AlignVCenter, metin)
         p.setFont(self.font())
 
     # ------------------------------------------------------------------
@@ -294,10 +438,11 @@ class TakvimWidget(QWidget):
             return
         i = self._satir_bul(pos.y())
         yeni = (i, self._dilim(pos.x())) if i is not None and pos.x() >= ETIKET_GEN else None
-        if yeni != self._uzerinde:
-            self._uzerinde = yeni
+        kutu = self._kutu_bul(pos)
+        if yeni != self._uzerinde or kutu != self._uzerindeki_kutu:
+            self._uzerinde, self._uzerindeki_kutu = yeni, kutu
             self.update()
-        self.setCursor(Qt.PointingHandCursor if self._kutu_bul(pos) else Qt.ArrowCursor)
+        self.setCursor(Qt.PointingHandCursor if kutu else (Qt.CrossCursor if yeni else Qt.ArrowCursor))
 
     def mouseReleaseEvent(self, e):
         if not self._surukle:
@@ -309,16 +454,12 @@ class TakvimWidget(QWidget):
         if a == b - 1:  # tek tıklama: varsayılan 1 saat
             b = a + 60 // DILIM_DK
         bas = self._dilim_zamani(a)
-        bit = min(self._dilim_zamani(b),
-                  datetime(self.gun.year, self.gun.month, self.gun.day, CALISMA_BITIS_SAAT))
+        bit = min(self._dilim_zamani(b), self._gun_basi() + timedelta(hours=CALISMA_BITIS_SAAT))
         self.aralik_secildi.emit(self._satirlar[i].kaynak["id"], bas, bit)
 
     def leaveEvent(self, _):
         self._uzerinde = None
-        self.update()
-
-    def resizeEvent(self, e):
-        super().resizeEvent(e)
+        self._uzerindeki_kutu = None
         self.update()
 
     def event(self, e):
@@ -329,21 +470,16 @@ class TakvimWidget(QWidget):
                 kul = self.oturum.sistem.kullanicilar.get(r.kullanici, {})
                 metin = (f"<b>{r.id}</b> · {DURUM_AD.get(r.durum, r.durum)}<br>"
                          f"{r.kullanici} {kul.get('ad', '')}<br>{r.kaynak} · {aralik_metni(r.baslangic, r.bitis)}"
-                         f"<br>Ücret: {r.ucret} KP" + (f"<br>Paket: {r.paket}" if r.paket else ""))
+                         f"<br>Ücret: {r.ucret} KP" + (f"<br>Paket: {r.paket}" if r.paket else "")
+                         + "<br><i>Sağ tık: giriş, çıkış, iptal</i>")
                 QToolTip.showText(e.globalPos(), metin, self)
             else:
-                i = self._satir_bul(e.pos().y())
-                if i is not None and e.pos().x() >= ETIKET_GEN:
-                    an = self._dilim_zamani(self._dilim(e.pos().x()))
-                    QToolTip.showText(e.globalPos(), f"{self._satirlar[i].kaynak['id']} · {saat_metni(an)}"
-                                      " — sürükleyerek aralık seçin", self)
-                else:
-                    QToolTip.hideText()
+                QToolTip.hideText()
             return True
         return super().event(e)
 
     def _eylem_menusu(self, rid: str, konum) -> None:
         menu = QMenu(self)
         for eylem, ad in (("giris", "Giriş yap"), ("cikis", "Çıkış yap"), ("iptal", "İptal et")):
-            menu.addAction(ad, lambda e=eylem: self.eylem_istendi.emit(e, rid))
+            menu.addAction(tema.ikon(eylem), ad, lambda e=eylem: self.eylem_istendi.emit(e, rid))
         menu.exec(konum)

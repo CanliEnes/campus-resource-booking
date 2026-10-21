@@ -10,14 +10,14 @@ from PySide6.QtWidgets import QApplication
 
 from arayuz.ana_pencere import AnaPencere
 from arayuz.oturum import Oturum
-from arayuz.stil import STIL
+from arayuz import tema
 
 
 def main() -> int:
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setFont(QFont("Segoe UI", 9))
-    app.setStyleSheet(STIL)
+    app.setStyleSheet(tema.stil_sayfasi())
     oturum = Oturum()
     pencere = AnaPencere(oturum)
 

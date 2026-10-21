@@ -31,7 +31,11 @@ python uygulama.py ornek/baslangic.json
 
 ```
 python testler/karsilastir.py
+python testler/arayuz_testi.py     (arayüz: örnek senaryo ekrandaki düğmelerle)
 ```
+
+Arayüzde sağ üstteki ay/güneş düğmesi açık ve koyu tema arasında geçiş yapar; yanındaki
+oktan animasyonlar kapatılabilir. Seçim bir sonraki açılışta hatırlanır.
 
 ## Klasör yapısı
 
