@@ -1,0 +1,1 @@
+"""Masaüstü uygulaması (PySide6)."""
