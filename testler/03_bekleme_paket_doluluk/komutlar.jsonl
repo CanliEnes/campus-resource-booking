@@ -1,0 +1,31 @@
+{"komut":"kullanici_ekle","id":"u1","ad":"Ayşe Kaya","rol":"OGRENCI","sertifikalar":[],"bakiye":120,"guvenilirlik":80}
+{"komut":"kullanici_ekle","id":"u2","ad":"Mehmet Demir","rol":"OGRENCI","sertifikalar":[],"bakiye":120,"guvenilirlik":90}
+{"komut":"kullanici_ekle","id":"u6","ad":"Ali Öztürk","rol":"OGRENCI","sertifikalar":[],"bakiye":120,"guvenilirlik":70}
+{"komut":"rezervasyon","kullanici":"u3","kaynak":"ODA-1","baslangic":"2027-03-08T12:00","bitis":"2027-03-08T14:00"}
+{"komut":"bekleme","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-08T12:00","bitis":"2027-03-08T13:00"}
+{"komut":"bekleme","kullanici":"u6","kaynak":"ODA-1","baslangic":"2027-03-08T13:00","bitis":"2027-03-08T14:00"}
+{"komut":"bekleme","kullanici":"u2","kaynak":"ODA-1","baslangic":"2027-03-08T12:30","bitis":"2027-03-08T13:30"}
+{"komut":"bekleme","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-08T15:00","bitis":"2027-03-08T16:00"}
+{"komut":"bekleme","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-08T07:00","bitis":"2027-03-08T08:00"}
+{"komut":"bekleme","kullanici":"u1","kaynak":"YAZ-2","baslangic":"2027-03-08T09:00","bitis":"2027-03-08T10:00"}
+{"komut":"iptal","rezervasyon":"r1"}
+{"komut":"bekleme","kullanici":"u6","kaynak":"ODA-1","baslangic":"2027-03-08T14:00","bitis":"2027-03-08T15:00"}
+{"komut":"saat","zaman":"2027-03-08T12:25"}
+{"komut":"giris","rezervasyon":"r2"}
+{"komut":"saat","zaman":"2027-03-08T12:45"}
+{"komut":"cikis","rezervasyon":"r2"}
+{"komut":"sorgu","tur":"kaynak","id":"ODA-1","gun":"2027-03-08"}
+{"komut":"sorgu","tur":"kaynak","id":"YAZ-2","gun":"2027-03-08"}
+{"komut":"paket","kullanici":"u5","kalemler":[{"kaynak":"ODA-1","baslangic":"2027-03-08T15:00","bitis":"2027-03-08T16:00"},{"kaynak":"ODA-2","baslangic":"2027-03-08T15:00","bitis":"2027-03-08T16:00"}]}
+{"komut":"paket","kullanici":"u1","kalemler":[{"kaynak":"ODA-1","baslangic":"2027-03-08T15:00","bitis":"2027-03-08T16:00"}]}
+{"komut":"paket","kullanici":"u1","kalemler":[{"kaynak":"ODA-1","baslangic":"2027-03-08T15:00","bitis":"2027-03-08T16:00"},{"kaynak":"ODA-2","baslangic":"2027-03-08T15:00","bitis":"2027-03-08T16:00"},{"kaynak":"ODA-1","baslangic":"2027-03-09T15:00","bitis":"2027-03-09T16:00"},{"kaynak":"ODA-2","baslangic":"2027-03-09T15:00","bitis":"2027-03-09T16:00"},{"kaynak":"ODA-1","baslangic":"2027-03-10T15:00","bitis":"2027-03-10T16:00"}]}
+{"komut":"paket","kullanici":"u1","kalemler":[{"kaynak":"ODA-2","baslangic":"2027-03-08T14:00","bitis":"2027-03-08T15:00"},{"kaynak":"CIH-1","baslangic":"2027-03-08T14:00","bitis":"2027-03-08T15:00"},{"kaynak":"YAZ-2","baslangic":"2027-03-08T13:10","bitis":"2027-03-08T14:00"}]}
+{"komut":"paket","kullanici":"u1","kalemler":[{"kaynak":"ODA-2","baslangic":"2027-03-08T14:00","bitis":"2027-03-08T15:00"},{"kaynak":"ODA-2","baslangic":"2027-03-08T15:30","bitis":"2027-03-08T16:30"}]}
+{"komut":"paket","kullanici":"u1","kalemler":[{"kaynak":"YAZ-2","baslangic":"2027-03-08T14:00","bitis":"2027-03-08T17:00"},{"kaynak":"ODA-2","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T12:00"},{"kaynak":"YAZ-2","baslangic":"2027-03-09T10:00","bitis":"2027-03-09T13:00"},{"kaynak":"ODA-1","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T11:00"}]}
+{"komut":"paket","kullanici":"u1","kalemler":[{"kaynak":"YAZ-2","baslangic":"2027-03-08T14:00","bitis":"2027-03-08T17:00"},{"kaynak":"ODA-2","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T12:00"},{"kaynak":"YAZ-2","baslangic":"2027-03-09T10:00","bitis":"2027-03-09T13:00"}]}
+{"komut":"sorgu","tur":"kullanici","id":"u1"}
+{"komut":"rezervasyon","kullanici":"u4","kaynak":"ODA-1","baslangic":"2027-03-09T08:00","bitis":"2027-03-09T10:00"}
+{"komut":"kaynak_ekle","id":"ODA-3","ad":"Toplantı Odası 3","tur":"ODA","izinli_roller":["OGRENCI","TEKNISYEN"]}
+{"komut":"fiyat","kullanici":"u4","kaynak":"ODA-3","baslangic":"2027-03-09T08:00","bitis":"2027-03-09T10:00"}
+{"komut":"fiyat","kullanici":"u4","kaynak":"ODA-3","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T11:00"}
+{"komut":"fiyat","kullanici":"u4","kaynak":"ODA-3","baslangic":"2027-03-09T10:00","bitis":"2027-03-09T10:30"}

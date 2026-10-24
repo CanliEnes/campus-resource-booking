@@ -1,0 +1,34 @@
+{"komut":"kullanici_ekle","id":"u1","ad":"Ayşe Kaya","rol":"OGRENCI","sertifikalar":[],"bakiye":120,"guvenilirlik":80}
+{"komut":"rezervasyon","kullanici":"u99","kaynak":"ODA-1","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T10:00"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"ODA-9","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T10:00"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T09:00"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-08T07:00","bitis":"2027-03-08T08:00"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-09T07:00","bitis":"2027-03-09T08:30"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-09T21:00","bitis":"2027-03-09T22:15"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T09:15"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T12:15"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-15T08:00","bitis":"2027-03-15T09:00"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"ODA-1","baslangic":"2027-03-15T08:15","bitis":"2027-03-15T09:15"}
+{"komut":"rezervasyon","kullanici":"u1","kaynak":"CIH-1","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T10:00"}
+{"komut":"rezervasyon","kullanici":"u3","kaynak":"LAB-2","baslangic":"2027-03-09T09:00","bitis":"2027-03-09T10:00"}
+{"komut":"rezervasyon","kullanici":"u4","kaynak":"CIH-2","baslangic":"2027-03-09T13:00","bitis":"2027-03-09T15:00"}
+{"komut":"rezervasyon","kullanici":"u4","kaynak":"CIH-2","baslangic":"2027-03-09T14:00","bitis":"2027-03-09T15:00"}
+{"komut":"rezervasyon","kullanici":"u3","kaynak":"CIH-2","baslangic":"2027-03-09T14:30","bitis":"2027-03-09T15:30"}
+{"komut":"rezervasyon","kullanici":"u3","kaynak":"CIH-2","baslangic":"2027-03-09T15:00","bitis":"2027-03-09T16:00"}
+{"komut":"rezervasyon","kullanici":"u3","kaynak":"CIH-2","baslangic":"2027-03-09T15:15","bitis":"2027-03-09T16:15"}
+{"komut":"rezervasyon","kullanici":"u3","kaynak":"CIH-2","baslangic":"2027-03-09T16:45","bitis":"2027-03-09T17:45"}
+{"komut":"rezervasyon","kullanici":"u3","kaynak":"CIH-2","baslangic":"2027-03-09T17:15","bitis":"2027-03-09T18:15"}
+{"komut":"kullanici_ekle","id":"u7","ad":"Deniz Ak","rol":"OGRENCI","sertifikalar":[],"bakiye":10,"guvenilirlik":80}
+{"komut":"rezervasyon","kullanici":"u7","kaynak":"YAZ-2","baslangic":"2027-03-08T10:00","bitis":"2027-03-08T11:00"}
+{"komut":"fiyat","kullanici":"u7","kaynak":"YAZ-2","baslangic":"2027-03-08T10:00","bitis":"2027-03-08T11:00"}
+{"komut":"rezervasyon","kullanici":"u5","kaynak":"ODA-1","baslangic":"2027-03-09T10:00","bitis":"2027-03-09T11:00"}
+{"komut":"kullanici_ekle","id":"u1","ad":"Tekrar","rol":"OGRENCI","sertifikalar":[],"bakiye":100,"guvenilirlik":80}
+{"komut":"kullanici_ekle","id":"u9","ad":"Prof","rol":"PROFESOR","sertifikalar":[],"bakiye":100,"guvenilirlik":80}
+{"komut":"kullanici_ekle","id":"u9","ad":"Fazla","rol":"OGRENCI","sertifikalar":[],"bakiye":150,"guvenilirlik":80}
+{"komut":"kullanici_ekle","id":"u9","ad":"Negatif","rol":"OGRENCI","sertifikalar":[],"bakiye":-1,"guvenilirlik":80}
+{"komut":"kullanici_ekle","id":"u9","ad":"Guven","rol":"OGRENCI","sertifikalar":[],"bakiye":100,"guvenilirlik":101}
+{"komut":"kaynak_ekle","id":"ODA-1","ad":"Tekrar","tur":"ODA","izinli_roller":["OGRENCI"]}
+{"komut":"kaynak_ekle","id":"HAV-1","ad":"Havuz","tur":"HAVUZ","izinli_roller":["OGRENCI"]}
+{"komut":"kaynak_ekle","id":"ODA-9","ad":"Oda 9","tur":"ODA","izinli_roller":["OGRENCI","MISAFIR"]}
+{"komut":"sorgu","tur":"kullanici","id":"u42"}
+{"komut":"sorgu","tur":"kaynak","id":"CIH-2","gun":"2027-03-09"}

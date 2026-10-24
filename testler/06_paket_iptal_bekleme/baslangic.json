@@ -1,0 +1,27 @@
+{
+  "saat": "2027-03-08T08:00",
+  "kaynak_turleri": {
+    "ODA":    { "hazirlik_dk": 0,  "temel_ucret": 4,  "enerji_yogun": false, "sertifika": null },
+    "LAB":    { "hazirlik_dk": 10, "temel_ucret": 8,  "enerji_yogun": false, "sertifika": "LAB_GUVENLIK" },
+    "YAZICI": { "hazirlik_dk": 20, "temel_ucret": 12, "enerji_yogun": true,  "sertifika": null },
+    "CIHAZ":  { "hazirlik_dk": 15, "temel_ucret": 16, "enerji_yogun": true,  "sertifika": "CIHAZ_EGITIMI" }
+  },
+  "roller": {
+    "OGRENCI":     { "haftalik_kota": 120, "ileri_gun": 7,  "azami_sure_dk": 180 },
+    "ARASTIRMACI": { "haftalik_kota": 300, "ileri_gun": 14, "azami_sure_dk": 480 },
+    "TEKNISYEN":   { "haftalik_kota": 600, "ileri_gun": 30, "azami_sure_dk": 840 }
+  },
+  "kaynaklar": [
+    { "id": "YAZ-2", "ad": "3B Yazıcı 2",    "tur": "YAZICI", "izinli_roller": ["OGRENCI"] },
+    { "id": "CIH-1", "ad": "GPU Sunucusu 1", "tur": "CIHAZ",  "izinli_roller": ["ARASTIRMACI", "TEKNISYEN"] },
+    { "id": "ODA-1", "ad": "Toplantı Odası 1", "tur": "ODA",  "izinli_roller": ["OGRENCI", "ARASTIRMACI", "TEKNISYEN"] },
+    { "id": "ODA-2", "ad": "Toplantı Odası 2", "tur": "ODA",  "izinli_roller": ["OGRENCI", "ARASTIRMACI", "TEKNISYEN"] }
+  ],
+  "bakim_pencereleri": [
+    { "kaynak": "YAZ-2", "baslangic": "2027-03-08T08:00", "bitis": "2027-03-08T10:00" }
+  ],
+  "kullanicilar": [
+    { "id": "u3", "ad": "Elif Şahin", "rol": "ARASTIRMACI", "sertifikalar": ["CIHAZ_EGITIMI"],
+      "bakiye": 300, "guvenilirlik": 80 }
+  ]
+}
