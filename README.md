@@ -171,3 +171,7 @@ Koddaki `K1`…`K11` yorumları bu listeye karşılık gelir.
 5. Başlangıcı geçmişte kalan bekleme kayıtları saat her ilerlediğinde sessizce silinir.
 6. Paket içi kontrolde aynı kaynaktaki iki kalem arasında `max(hazırlık, 60 dk)` boşluk aranır;
    bu tek koşul kesişmeyi, hazırlık ihlalini ve ardışık kullanımı birlikte kapsar.
+
+## Lisans
+
+MIT
