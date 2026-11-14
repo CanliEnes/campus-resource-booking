@@ -24,8 +24,6 @@ için kural tabanlı rezervasyon motoru ve masaüstü uygulaması.
 
 ### Proje hakkında
 
-Kocaeli Üniversitesi **Yazılım Laboratuvarı I** dersi (2026-2027 Güz) Proje I kapsamında geliştirildi.
-
 Kullanıcılar kampüsteki kaynakları 15 dakikalık dilimlerle rezerve eder. Her kullanıcının haftalık
 bir **kredi puanı (KP) bakiyesi** ve 0-100 arası bir **güvenilirlik puanı** vardır. Rezervasyona
 gelmeyen ya da son anda iptal eden kullanıcının güvenilirliği düşer; düşük güvenilirlik ise ileri
@@ -208,8 +206,6 @@ python testler/arayuz_testi.py     # örnek senaryonun 19 adımını arayüzdeki
 
 ### About
 
-Developed for the **Software Laboratory I** course (Fall 2026-2027) at Kocaeli University, Project I.
-
 Users book shared campus resources (3D printers, GPU servers, meeting rooms, labs) in 15-minute
 slots. Each user has a weekly **credit point (KP) balance** and a **reliability score** from 0 to 100.
 No-shows and late cancellations lower reliability, and low reliability restricts advance and
@@ -222,7 +218,7 @@ The project has two parts:
 2. **Desktop app** (`arayuz/`): A PySide6 interface on top of the engine. It holds no business
    logic of its own; every action is sent to the engine as a command.
 
-> The code, identifiers and messages are in Turkish, as required by the course.
+> The code, identifiers and messages are in Turkish.
 
 ### Screenshots
 

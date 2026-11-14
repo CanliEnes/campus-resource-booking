@@ -2,11 +2,11 @@
 
 Bu dosya arayüzden bağımsızdır. Hem komut satırı (calistir.bat / calistir.sh)
 hem de masaüstü uygulaması aynı RezervasyonSistemi sınıfını kullanır.
-Yorumlardaki K1..K11 numaraları ödev metnindeki kural numaralarıdır.
+Yorumlardaki K1..K11 numaraları kural numaralarıdır.
 
 Kaynak türleri, roller, kaynaklar, bakım pencereleri, kullanıcılar ve simüle
 saat başlangıç dosyasından okunur; burada sabit olarak yazılmaz. Aşağıdaki
-sabitler ise ödev metninde herkes için aynı tanımlanan kurallardır.
+sabitler ise herkes için aynı tanımlanan kurallardır.
 """
 from __future__ import annotations
 
